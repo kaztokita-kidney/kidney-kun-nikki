@@ -4,7 +4,7 @@
 
 ## 公開方式
 
-今後はHTMLファイル配布ではなく、GitHub Pagesで公開する前提です。
+GitHub Pagesで公開する前提です。
 
 - `index.html`: GitHub Pagesのトップページ
 - `manifest.webmanifest`: PWA設定
