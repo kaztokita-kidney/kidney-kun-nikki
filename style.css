@@ -1,0 +1,271 @@
+*{box-sizing:border-box}
+:root{
+  --bg:#fff7ed;
+  --card:#fff;
+  --ink:#3f2f2f;
+  --muted:#756767;
+  --line:#ead8ca;
+  --accent:#ff8f83;
+  --accent-dark:#d96b61;
+  --accent2:#ffe5df;
+  --good:#4f9f70;
+  --warn:#d5962f;
+  --bad:#d15b65;
+  --blue:#5e8cc7;
+}
+body{
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),#fff 64%);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.app{
+  width:100%;
+  max-width:430px;
+  margin:0 auto;
+  padding:calc(12px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom));
+}
+.app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px 16px;
+  margin-bottom:10px;
+  box-shadow:0 6px 18px rgba(126,74,45,.10);
+}
+.eyebrow{
+  margin:0 0 3px;
+  color:var(--accent-dark);
+  font-size:12px;
+  font-weight:800;
+}
+h1{font-size:25px;margin:0;letter-spacing:0}
+h2{font-size:20px;text-align:center;margin:4px 0 12px;letter-spacing:0}
+h3{margin:14px 0 6px;font-size:16px}
+.app-header p,.hint{
+  font-size:13px;
+  color:var(--muted);
+  line-height:1.5;
+  margin:4px 0 0;
+}
+.kidney-face{
+  min-width:56px;
+  width:56px;
+  height:56px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  background:var(--accent2);
+  color:var(--accent-dark);
+  font-size:36px;
+  font-weight:900;
+}
+.tabs{
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  position:sticky;
+  top:0;
+  background:rgba(255,247,237,.95);
+  backdrop-filter:blur(8px);
+  padding:8px 0;
+  z-index:3;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab,button{
+  min-height:44px;
+  border:0;
+  border-radius:999px;
+  padding:10px 13px;
+  background:#fff;
+  color:var(--ink);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  font-weight:800;
+  font-size:14px;
+  white-space:nowrap;
+}
+button:active,.tab:active{transform:translateY(1px)}
+.tab.active,.primary{
+  background:var(--accent);
+  color:#fff;
+}
+.primary,.secondary{
+  width:100%;
+  margin-top:10px;
+  font-size:16px;
+}
+.secondary{background:#fff}
+.small-button{
+  min-height:38px;
+  padding:8px 11px;
+  font-size:12px;
+}
+.screen{display:none}
+.screen.active{display:block}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 6px 18px rgba(126,74,45,.10);
+  margin-bottom:12px;
+}
+.screenshot-card{min-height:560px}
+.screen-title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.screen-title-row h2{margin:0 0 8px;text-align:left}
+.screen-title-row input[type=date]{
+  width:150px;
+  min-height:40px;
+  padding:8px;
+  font-size:14px;
+}
+.date{text-align:center;color:var(--muted);font-size:13px}
+.big-face{
+  width:84px;
+  height:84px;
+  margin:10px auto 6px;
+  border-radius:28px;
+  display:grid;
+  place-items:center;
+  background:var(--accent2);
+  color:var(--accent-dark);
+  font-size:58px;
+  line-height:1;
+  font-weight:900;
+}
+.score{text-align:center;font-size:30px;font-weight:900}
+.status{text-align:center;color:var(--muted);font-weight:800;margin-bottom:10px}
+.food-rows{
+  border-top:1px dashed var(--line);
+  border-bottom:1px dashed var(--line);
+  padding:6px 0;
+}
+.food-row{
+  display:grid;
+  grid-template-columns:1.1fr .8fr 58px;
+  gap:6px;
+  align-items:center;
+  padding:8px 0;
+  font-size:15px;
+}
+.food-row .value{text-align:right;font-variant-numeric:tabular-nums}
+.judge{
+  text-align:center;
+  border-radius:999px;
+  padding:5px 4px;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+}
+.judge.good{background:var(--good)}
+.judge.warn{background:var(--warn)}
+.judge.bad{background:var(--bad)}
+.judge.off{background:#a99}
+.name{font-weight:900}
+.comment{
+  font-size:15px;
+  line-height:1.65;
+  margin-top:10px;
+  background:var(--accent2);
+  border-radius:14px;
+  padding:12px;
+  white-space:pre-line;
+}
+label{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  font-size:13px;
+  font-weight:900;
+  color:#5c4b4b;
+  margin:8px 0;
+}
+input,textarea,select{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:11px;
+  background:#fff;
+  font-size:16px;
+  color:var(--ink);
+}
+textarea{resize:vertical}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.grid.three{grid-template-columns:1fr 1fr 1fr}
+.filters{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+.history-item,.average-item{
+  display:grid;
+  grid-template-columns:78px 1fr 64px;
+  gap:8px;
+  align-items:center;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+}
+.history-item:last-child,.average-item:last-child{border-bottom:0}
+.history-item span,.average-item span{color:var(--muted);line-height:1.45}
+.threshold-row{
+  border-top:1px solid var(--line);
+  padding-top:12px;
+  margin-top:12px;
+}
+.threshold-row b{display:block;margin-bottom:6px}
+.threshold-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+}
+.threshold-grid .wide{grid-column:1/-1}
+.inline-check{
+  display:flex;
+  align-items:center;
+  flex-direction:row;
+  gap:8px;
+  margin:6px 0 0;
+}
+.inline-check input{width:20px;min-height:20px}
+canvas{
+  width:100%;
+  height:260px;
+  background:#fffaf7;
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+.cloud-plan b{display:block;margin-top:10px}
+.cloud-plan p{margin:4px 0 0;color:var(--muted);line-height:1.55;font-size:14px}
+@media(max-width:390px){
+  .app{padding-left:10px;padding-right:10px}
+  h1{font-size:23px}
+  .grid.three{grid-template-columns:1fr}
+  .filters{grid-template-columns:1fr}
+  .threshold-grid{grid-template-columns:1fr}
+  .food-row{grid-template-columns:1fr .78fr 54px;font-size:14px}
+}
+@media(max-height:740px){
+  .card{padding:13px}
+  .screenshot-card{min-height:auto}
+  .big-face{width:72px;height:72px;font-size:48px}
+  .food-row{padding:6px 0;font-size:14px}
+  .comment{font-size:14px;line-height:1.5}
+}

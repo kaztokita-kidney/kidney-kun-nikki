@@ -1,0 +1,1058 @@
+<!doctype html>
+<html lang="ja">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+  <meta name="theme-color" content="#fff7ed" />
+  <meta name="application-name" content="腎臓くん日記" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-title" content="腎臓くん日記" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <link rel="manifest" href="manifest.webmanifest" />
+  <link rel="apple-touch-icon" href="icons/icon-180.png" />
+  <link rel="icon" type="image/png" sizes="192x192" href="icons/icon-192.png" />
+  <title>腎臓くん日記</title>
+  <style>
+*{box-sizing:border-box}
+:root{
+  --bg:#fff7ed;
+  --card:#fff;
+  --ink:#3f2f2f;
+  --muted:#756767;
+  --line:#ead8ca;
+  --accent:#ff8f83;
+  --accent-dark:#d96b61;
+  --accent2:#ffe5df;
+  --good:#4f9f70;
+  --warn:#d5962f;
+  --bad:#d15b65;
+  --blue:#5e8cc7;
+}
+body{
+  margin:0;
+  background:linear-gradient(180deg,var(--bg),#fff 64%);
+  color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Hiragino Sans","Yu Gothic",Meiryo,sans-serif;
+  -webkit-text-size-adjust:100%;
+}
+.app{
+  width:100%;
+  max-width:430px;
+  margin:0 auto;
+  padding:calc(12px + env(safe-area-inset-top)) 12px calc(28px + env(safe-area-inset-bottom));
+}
+.app-header{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  background:#fff;
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:14px 16px;
+  margin-bottom:10px;
+  box-shadow:0 6px 18px rgba(126,74,45,.10);
+}
+.eyebrow{
+  margin:0 0 3px;
+  color:var(--accent-dark);
+  font-size:12px;
+  font-weight:800;
+}
+h1{font-size:25px;margin:0;letter-spacing:0}
+h2{font-size:20px;text-align:center;margin:4px 0 12px;letter-spacing:0}
+h3{margin:14px 0 6px;font-size:16px}
+.app-header p,.hint{
+  font-size:13px;
+  color:var(--muted);
+  line-height:1.5;
+  margin:4px 0 0;
+}
+.kidney-face{
+  min-width:56px;
+  width:56px;
+  height:56px;
+  border-radius:18px;
+  display:grid;
+  place-items:center;
+  background:var(--accent2);
+  color:var(--accent-dark);
+  font-size:36px;
+  font-weight:900;
+}
+.tabs{
+  display:flex;
+  gap:7px;
+  overflow-x:auto;
+  position:sticky;
+  top:0;
+  background:rgba(255,247,237,.95);
+  backdrop-filter:blur(8px);
+  padding:8px 0;
+  z-index:3;
+  scrollbar-width:none;
+}
+.tabs::-webkit-scrollbar{display:none}
+.tab,button{
+  min-height:44px;
+  border:0;
+  border-radius:999px;
+  padding:10px 13px;
+  background:#fff;
+  color:var(--ink);
+  box-shadow:0 2px 8px rgba(0,0,0,.08);
+  font-weight:800;
+  font-size:14px;
+  white-space:nowrap;
+}
+button:active,.tab:active{transform:translateY(1px)}
+.tab.active,.primary{
+  background:var(--accent);
+  color:#fff;
+}
+.primary,.secondary{
+  width:100%;
+  margin-top:10px;
+  font-size:16px;
+}
+.secondary{background:#fff}
+.small-button{
+  min-height:38px;
+  padding:8px 11px;
+  font-size:12px;
+}
+.screen{display:none}
+.screen.active{display:block}
+.card{
+  background:var(--card);
+  border:1px solid var(--line);
+  border-radius:18px;
+  padding:16px;
+  box-shadow:0 6px 18px rgba(126,74,45,.10);
+  margin-bottom:12px;
+}
+.screenshot-card{min-height:560px}
+.screen-title-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:10px;
+}
+.screen-title-row h2{margin:0 0 8px;text-align:left}
+.screen-title-row input[type=date]{
+  width:150px;
+  min-height:40px;
+  padding:8px;
+  font-size:14px;
+}
+.date{text-align:center;color:var(--muted);font-size:13px}
+.big-face{
+  width:84px;
+  height:84px;
+  margin:10px auto 6px;
+  border-radius:28px;
+  display:grid;
+  place-items:center;
+  background:var(--accent2);
+  color:var(--accent-dark);
+  font-size:58px;
+  line-height:1;
+  font-weight:900;
+}
+.score{text-align:center;font-size:30px;font-weight:900}
+.status{text-align:center;color:var(--muted);font-weight:800;margin-bottom:10px}
+.food-rows{
+  border-top:1px dashed var(--line);
+  border-bottom:1px dashed var(--line);
+  padding:6px 0;
+}
+.food-row{
+  display:grid;
+  grid-template-columns:1.1fr .8fr 58px;
+  gap:6px;
+  align-items:center;
+  padding:8px 0;
+  font-size:15px;
+}
+.food-row .value{text-align:right;font-variant-numeric:tabular-nums}
+.judge{
+  text-align:center;
+  border-radius:999px;
+  padding:5px 4px;
+  color:#fff;
+  font-size:12px;
+  font-weight:900;
+}
+.judge.good{background:var(--good)}
+.judge.warn{background:var(--warn)}
+.judge.bad{background:var(--bad)}
+.judge.off{background:#a99}
+.name{font-weight:900}
+.comment{
+  font-size:15px;
+  line-height:1.65;
+  margin-top:10px;
+  background:var(--accent2);
+  border-radius:14px;
+  padding:12px;
+  white-space:pre-line;
+}
+label{
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  font-size:13px;
+  font-weight:900;
+  color:#5c4b4b;
+  margin:8px 0;
+}
+input,textarea,select{
+  width:100%;
+  min-height:44px;
+  border:1px solid var(--line);
+  border-radius:12px;
+  padding:11px;
+  background:#fff;
+  font-size:16px;
+  color:var(--ink);
+}
+textarea{resize:vertical}
+.grid{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:10px;
+}
+.grid.three{grid-template-columns:1fr 1fr 1fr}
+.filters{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+  margin-bottom:10px;
+}
+.history-item,.average-item{
+  display:grid;
+  grid-template-columns:78px 1fr 64px;
+  gap:8px;
+  align-items:center;
+  padding:10px 0;
+  border-bottom:1px solid var(--line);
+  font-size:14px;
+}
+.history-item:last-child,.average-item:last-child{border-bottom:0}
+.history-item span,.average-item span{color:var(--muted);line-height:1.45}
+.threshold-row{
+  border-top:1px solid var(--line);
+  padding-top:12px;
+  margin-top:12px;
+}
+.threshold-row b{display:block;margin-bottom:6px}
+.threshold-grid{
+  display:grid;
+  grid-template-columns:1fr 1fr 1fr;
+  gap:8px;
+}
+.threshold-grid .wide{grid-column:1/-1}
+.inline-check{
+  display:flex;
+  align-items:center;
+  flex-direction:row;
+  gap:8px;
+  margin:6px 0 0;
+}
+.inline-check input{width:20px;min-height:20px}
+canvas{
+  width:100%;
+  height:260px;
+  background:#fffaf7;
+  border:1px solid var(--line);
+  border-radius:14px;
+}
+.cloud-plan b{display:block;margin-top:10px}
+.cloud-plan p{margin:4px 0 0;color:var(--muted);line-height:1.55;font-size:14px}
+@media(max-width:390px){
+  .app{padding-left:10px;padding-right:10px}
+  h1{font-size:23px}
+  .grid.three{grid-template-columns:1fr}
+  .filters{grid-template-columns:1fr}
+  .threshold-grid{grid-template-columns:1fr}
+  .food-row{grid-template-columns:1fr .78fr 54px;font-size:14px}
+}
+@media(max-height:740px){
+  .card{padding:13px}
+  .screenshot-card{min-height:auto}
+  .big-face{width:72px;height:72px;font-size:48px}
+  .food-row{padding:6px 0;font-size:14px}
+  .comment{font-size:14px;line-height:1.5}
+}
+
+  </style>
+  <!-- 単一HTML版: CSSとJavaScriptを埋め込み済み。iPhoneで外部ファイルが読めない場合に使います。 -->
+</head>
+<body>
+  <main class="app">
+    <header class="app-header">
+      <div>
+        <p class="eyebrow">家庭用の記録・傾向確認アプリ</p>
+        <h1>腎臓くん日記</h1>
+        <p>食事と血圧を、やさしく毎日記録します。</p>
+      </div>
+      <div class="kidney-face" id="mainFace" aria-hidden="true">♡</div>
+    </header>
+
+    <nav class="tabs" aria-label="画面切替">
+      <button class="tab active" data-screen="wifeView">妻が見る</button>
+      <button class="tab" data-screen="foodInput">食事管理</button>
+      <button class="tab" data-screen="bpInput">血圧管理</button>
+      <button class="tab" data-screen="history">履歴・グラフ</button>
+      <button class="tab" data-screen="settings">設定</button>
+    </nav>
+
+    <section id="wifeView" class="screen active">
+      <div class="card screenshot-card">
+        <div class="screen-title-row">
+          <h2>今日の腎臓くん</h2>
+          <input type="date" id="viewDatePicker" aria-label="表示する日付" />
+        </div>
+        <div class="date" id="viewDate"></div>
+        <div class="big-face" id="viewFace" aria-hidden="true">♡</div>
+        <div class="score" id="viewScore">--点</div>
+        <div class="status" id="viewStatus">入力待ち</div>
+        <div id="foodRows" class="food-rows"></div>
+        <div class="comment" id="foodComment">食事データを入力すると、腎臓くんが良いところも見つけてコメントします。</div>
+      </div>
+      <p class="hint">医療判断ではなく、ご家庭での記録と意識づけを目的にしています。</p>
+    </section>
+
+    <section id="foodInput" class="screen">
+      <div class="card">
+        <div class="screen-title-row">
+          <h2>食事管理</h2>
+          <button class="small-button" id="loadFood">日付の記録を読込</button>
+        </div>
+        <label>日付<input type="date" id="foodDate"></label>
+        <div class="grid">
+          <label>エネルギー kcal<input inputmode="decimal" type="number" min="0" step="0.1" id="energy" placeholder="例 1250"></label>
+          <label>タンパク質 g<input inputmode="decimal" type="number" min="0" step="0.1" id="protein" placeholder="例 48"></label>
+          <label>塩分 g<input inputmode="decimal" type="number" min="0" step="0.1" id="salt" placeholder="例 5.8"></label>
+          <label>カリウム mg<input inputmode="decimal" type="number" min="0" step="1" id="potassium" placeholder="例 1800"></label>
+          <label>リン mg<input inputmode="decimal" type="number" min="0" step="1" id="phosphorus" placeholder="例 820"></label>
+          <label>水分 ml<input inputmode="decimal" type="number" min="0" step="1" id="water" placeholder="例 900"></label>
+        </div>
+        <button class="primary" id="saveFood">保存して妻が見る画面へ</button>
+        <button class="secondary" id="clearFood">空欄にする</button>
+      </div>
+    </section>
+
+    <section id="bpInput" class="screen">
+      <div class="card">
+        <div class="screen-title-row">
+          <h2>血圧管理</h2>
+          <button class="small-button" id="loadBp">日付の記録を読込</button>
+        </div>
+        <label>日付<input type="date" id="bpDate"></label>
+        <h3>朝</h3>
+        <div class="grid three">
+          <label>最高血圧<input inputmode="numeric" type="number" min="0" step="1" id="amSys" placeholder="例 150"></label>
+          <label>最低血圧<input inputmode="numeric" type="number" min="0" step="1" id="amDia" placeholder="例 85"></label>
+          <label>脈拍<input inputmode="numeric" type="number" min="0" step="1" id="amPulse" placeholder="例 72"></label>
+        </div>
+        <h3>夜</h3>
+        <div class="grid three">
+          <label>最高血圧<input inputmode="numeric" type="number" min="0" step="1" id="pmSys" placeholder="例 145"></label>
+          <label>最低血圧<input inputmode="numeric" type="number" min="0" step="1" id="pmDia" placeholder="例 82"></label>
+          <label>脈拍<input inputmode="numeric" type="number" min="0" step="1" id="pmPulse" placeholder="例 75"></label>
+        </div>
+        <label>メモ<textarea id="bpMemo" rows="3" placeholder="体調、食事、透析日など"></textarea></label>
+        <button class="primary" id="saveBp">血圧を保存</button>
+        <button class="secondary" id="clearBp">空欄にする</button>
+      </div>
+    </section>
+
+    <section id="history" class="screen">
+      <div class="card">
+        <h2>グラフ</h2>
+        <div class="filters">
+          <select id="graphType" aria-label="グラフ種別">
+            <option value="food">食事</option>
+            <option value="bp">血圧</option>
+          </select>
+          <select id="metricSelect" aria-label="表示項目"></select>
+          <select id="rangeSelect" aria-label="表示期間">
+            <option value="7">過去1週間</option>
+            <option value="30">過去1カ月</option>
+          </select>
+        </div>
+        <canvas id="chart" width="390" height="260"></canvas>
+        <p class="hint" id="chartHint">設定した目標線または上限線を一緒に表示します。</p>
+      </div>
+      <div class="card">
+        <h2>過去7日平均</h2>
+        <div id="averageRows" class="average-rows"></div>
+      </div>
+      <div class="card">
+        <h2>食事履歴</h2>
+        <div id="foodHistory"></div>
+      </div>
+      <div class="card">
+        <h2>血圧履歴</h2>
+        <div id="bpHistory"></div>
+      </div>
+    </section>
+
+    <section id="settings" class="screen">
+      <div class="card">
+        <h2>プロフィール</h2>
+        <div class="grid">
+          <label>身長 cm<input inputmode="decimal" type="number" min="0" step="0.1" id="height"></label>
+          <label>体重 kg<input inputmode="decimal" type="number" min="0" step="0.1" id="weight"></label>
+          <label>標準体重 kg<input inputmode="decimal" type="number" min="0" step="0.1" id="standardWeight"></label>
+        </div>
+        <button class="secondary" id="calcRecommend">身長・体重から目安を計算</button>
+      </div>
+
+      <div class="card">
+        <h2>評価基準</h2>
+        <p class="hint">透析患者の基準は個人差が大きいため、計算値は初期案として扱い、医師・管理栄養士の指示に合わせて変更してください。</p>
+        <div id="thresholdEditor"></div>
+        <button class="primary" id="saveSettings">設定を保存</button>
+      </div>
+
+      <div class="card">
+        <h2>共有コード</h2>
+        <p class="hint">現在の端末内データを文字列にして保存・移動できます。クラウド同期ではありません。</p>
+        <button class="secondary" id="makeShareCode">共有コードを作成</button>
+        <textarea id="shareCode" rows="5" placeholder="共有コードがここに表示されます"></textarea>
+        <button class="secondary" id="importShareCode">共有コードを読み込む</button>
+      </div>
+
+      <div class="card">
+        <h2>クラウド同期案</h2>
+        <div class="cloud-plan">
+          <b>第1候補: Googleスプレッドシート連携</b>
+          <p>家族で見やすく、あとから表として確認しやすい方法です。最初の同期先に向いています。</p>
+          <b>第2候補: Supabase / Firebase</b>
+          <p>スマホ2台で自動同期する本格運用向きです。ログインや権限設定が必要です。</p>
+          <b>第3候補: GitHub Pages + 外部DB</b>
+          <p>公開URLで使いやすい一方、個人データ保護の設計を慎重に行う必要があります。</p>
+        </div>
+      </div>
+    </section>
+  </main>
+  <script>
+const FOOD_KEY = "kidneyKunNikki_food_v1";
+const BP_KEY = "kidneyKunNikki_bp_v1";
+const SET_KEY = "kidneyKunNikki_settings_v1";
+
+const metrics = [
+  { key: "energy", name: "エネルギー", unit: "kcal", icon: "E", type: "range" },
+  { key: "protein", name: "タンパク質", unit: "g", icon: "P", type: "upper" },
+  { key: "salt", name: "塩分", unit: "g", icon: "S", type: "upper" },
+  { key: "potassium", name: "カリウム", unit: "mg", icon: "K", type: "upper" },
+  { key: "phosphorus", name: "リン", unit: "mg", icon: "R", type: "upper" },
+  { key: "water", name: "水分", unit: "ml", icon: "W", type: "upper", optional: true }
+];
+
+const bpMetrics = [
+  { key: "sys", name: "最高血圧", unit: "mmHg" },
+  { key: "dia", name: "最低血圧", unit: "mmHg" },
+  { key: "pulse", name: "脈拍", unit: "回/分" }
+];
+
+const defaultSettings = {
+  profile: { height: "", weight: "", standardWeight: "" },
+  thresholds: {
+    energy: { goodMin: 1000, goodMax: 1320, warnMax: 1900, mode: "range", enabled: true },
+    protein: { goodMax: 51, warnMax: 70, mode: "upper", enabled: true },
+    salt: { goodMax: 6, warnMax: 9, mode: "upper", enabled: true },
+    potassium: { goodMax: 2000, warnMax: 2500, mode: "upper", enabled: true },
+    phosphorus: { goodMax: 900, warnMax: 1200, mode: "upper", enabled: true },
+    water: { goodMax: 99999, warnMax: 99999, mode: "upper", enabled: false }
+  }
+};
+
+function cloneValue(value) {
+  return JSON.parse(JSON.stringify(value));
+}
+
+function today() {
+  return new Date(Date.now() - new Date().getTimezoneOffset() * 60000).toISOString().slice(0, 10);
+}
+
+function jpDate(d) {
+  const x = new Date(d + "T00:00:00");
+  return `${x.getFullYear()}/${String(x.getMonth() + 1).padStart(2, "0")}/${String(x.getDate()).padStart(2, "0")}`;
+}
+
+const memoryStore = {};
+
+function storageGet(key) {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return memoryStore[key] || null;
+  }
+}
+
+function storageSet(key, value) {
+  try {
+    localStorage.setItem(key, value);
+  } catch {
+    memoryStore[key] = value;
+  }
+}
+
+function load(key, fallback) {
+  try {
+    return JSON.parse(storageGet(key) || JSON.stringify(fallback));
+  } catch {
+    return cloneValue(fallback);
+  }
+}
+
+function save(key, value) {
+  storageSet(key, JSON.stringify(value));
+}
+
+function deepMerge(base, override) {
+  const out = cloneValue(base);
+  Object.keys(override || {}).forEach((key) => {
+    if (override[key] && typeof override[key] === "object" && !Array.isArray(override[key])) {
+      out[key] = deepMerge(out[key] || {}, override[key]);
+    } else {
+      out[key] = override[key];
+    }
+  });
+  return out;
+}
+
+function foodRecords() {
+  return load(FOOD_KEY, {});
+}
+
+function bpRecords() {
+  return load(BP_KEY, {});
+}
+
+function settings() {
+  return deepMerge(defaultSettings, load(SET_KEY, defaultSettings));
+}
+
+function num(id) {
+  const value = parseFloat(document.getElementById(id).value);
+  return Number.isFinite(value) ? value : 0;
+}
+
+function setValue(id, value) {
+  document.getElementById(id).value = value ?? "";
+}
+
+document.querySelectorAll(".tab").forEach((button) => {
+  button.addEventListener("click", () => show(button.dataset.screen));
+});
+
+function show(id) {
+  document.querySelectorAll(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
+  document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.screen === id));
+  if (id === "wifeView") renderFoodView(viewDatePicker.value || today());
+  if (id === "history") {
+    renderHistory();
+    refreshMetricOptions();
+    drawChart();
+  }
+  if (id === "settings") renderSettings();
+}
+
+function evaluate(key, value) {
+  const threshold = settings().thresholds[key];
+  if (!threshold || threshold.enabled === false) return { level: "off", label: "記録", text: "評価OFF" };
+  if (threshold.mode === "range") {
+    if (value >= threshold.goodMin && value <= threshold.goodMax) return { level: "good", label: "良い", text: "良い" };
+    if (value > threshold.warnMax) return { level: "bad", label: "悪い", text: "悪い" };
+    return { level: "warn", label: "注意", text: "注意" };
+  }
+  if (value <= threshold.goodMax) return { level: "good", label: "良い", text: "良い" };
+  if (value <= threshold.warnMax) return { level: "warn", label: "注意", text: "注意" };
+  return { level: "bad", label: "悪い", text: "悪い" };
+}
+
+function scoreOf(record) {
+  let score = 100;
+  metrics.forEach((metric) => {
+    const threshold = settings().thresholds[metric.key];
+    if (threshold?.enabled === false) return;
+    const result = evaluate(metric.key, record[metric.key] || 0);
+    if (result.level === "warn") score -= 10;
+    if (result.level === "bad") score -= 25;
+  });
+  return Math.max(0, score);
+}
+
+function faceOf(score) {
+  if (score >= 90) return "♡";
+  if (score >= 75) return "○";
+  if (score >= 60) return "△";
+  if (score >= 40) return "!";
+  return "…";
+}
+
+function statusOf(score) {
+  if (score >= 90) return "とても良い感じ";
+  if (score >= 75) return "良い調子";
+  if (score >= 60) return "少し注意";
+  if (score >= 40) return "要注意";
+  return "かなり注意";
+}
+
+function commentOf(record) {
+  const good = [];
+  const warn = [];
+  const bad = [];
+  metrics.forEach((metric) => {
+    if (settings().thresholds[metric.key]?.enabled === false) return;
+    const result = evaluate(metric.key, record[metric.key] || 0);
+    if (result.level === "good") good.push(metric.name);
+    if (result.level === "warn") warn.push(metric.name);
+    if (result.level === "bad") bad.push(metric.name);
+  });
+
+  const praise = good.length
+    ? `${good.slice(0, 3).join("・")}はよく管理できています。`
+    : "今日も記録できたこと自体が大事な一歩です。";
+  if (!bad.length && !warn.length) {
+    return `${praise}\n腎臓くんも安心しています。この調子で、無理なく続けましょう。`;
+  }
+  if (bad.length) {
+    return `${praise}\n${bad.join("・")}は少し高めなので、次の食事でやさしく調整しましょう。\n悪いところだけでなく、できているところもちゃんとあります。`;
+  }
+  return `${praise}\n${warn.join("・")}は注意ラインです。明日は少しだけ意識できれば十分です。`;
+}
+
+function renderFoodView(date = today()) {
+  const record = foodRecords()[date];
+  viewDatePicker.value = date;
+  viewDate.textContent = jpDate(date);
+  if (!record) {
+    mainFace.textContent = viewFace.textContent = "♡";
+    viewScore.textContent = "--点";
+    viewStatus.textContent = "入力待ち";
+    foodRows.innerHTML = "";
+    foodComment.textContent = "食事データを入力すると、腎臓くんが良いところも見つけてコメントします。";
+    return;
+  }
+
+  const score = scoreOf(record);
+  mainFace.textContent = viewFace.textContent = faceOf(score);
+  viewScore.textContent = `${score}点`;
+  viewStatus.textContent = statusOf(score);
+  foodRows.innerHTML = metrics
+    .filter((metric) => metric.key !== "water" || settings().thresholds.water.enabled || record.water)
+    .map((metric) => {
+      const result = evaluate(metric.key, record[metric.key] || 0);
+      return `<div class="food-row">
+        <div class="name">${metric.icon} ${metric.name}</div>
+        <div class="value">${record[metric.key] || 0} ${metric.unit}</div>
+        <div class="judge ${result.level}">${result.label}</div>
+      </div>`;
+    })
+    .join("");
+  foodComment.textContent = commentOf(record);
+}
+
+function clearFoodInputs(keepDate = false) {
+  ["energy", "protein", "salt", "potassium", "phosphorus", "water"].forEach((id) => setValue(id, ""));
+  if (!keepDate) foodDate.value = today();
+}
+
+function fillFoodInputs(date) {
+  clearFoodInputs(true);
+  const record = foodRecords()[date];
+  if (!record) return;
+  ["energy", "protein", "salt", "potassium", "phosphorus", "water"].forEach((id) => setValue(id, record[id]));
+}
+
+function clearBpInputs(keepDate = false) {
+  ["amSys", "amDia", "amPulse", "pmSys", "pmDia", "pmPulse", "bpMemo"].forEach((id) => setValue(id, ""));
+  if (!keepDate) bpDate.value = today();
+}
+
+function fillBpInputs(date) {
+  clearBpInputs(true);
+  const record = bpRecords()[date];
+  if (!record) return;
+  ["amSys", "amDia", "amPulse", "pmSys", "pmDia", "pmPulse"].forEach((id) => setValue(id, record[id]));
+  setValue("bpMemo", record.memo);
+}
+
+saveFood.onclick = () => {
+  const date = foodDate.value || today();
+  const records = foodRecords();
+  records[date] = {
+    energy: num("energy"),
+    protein: num("protein"),
+    salt: num("salt"),
+    potassium: num("potassium"),
+    phosphorus: num("phosphorus"),
+    water: num("water")
+  };
+  save(FOOD_KEY, records);
+  renderFoodView(date);
+  clearFoodInputs();
+  show("wifeView");
+};
+
+clearFood.onclick = () => clearFoodInputs(true);
+loadFood.onclick = () => fillFoodInputs(foodDate.value || today());
+foodDate.onchange = () => clearFoodInputs(true);
+viewDatePicker.onchange = () => renderFoodView(viewDatePicker.value || today());
+
+saveBp.onclick = () => {
+  const date = bpDate.value || today();
+  const records = bpRecords();
+  records[date] = {
+    amSys: num("amSys"),
+    amDia: num("amDia"),
+    amPulse: num("amPulse"),
+    pmSys: num("pmSys"),
+    pmDia: num("pmDia"),
+    pmPulse: num("pmPulse"),
+    memo: bpMemo.value || ""
+  };
+  save(BP_KEY, records);
+  clearBpInputs();
+  alert("血圧を保存しました");
+  renderHistory();
+};
+
+clearBp.onclick = () => clearBpInputs(true);
+loadBp.onclick = () => fillBpInputs(bpDate.value || today());
+bpDate.onchange = () => clearBpInputs(true);
+
+function renderHistory() {
+  const foods = foodRecords();
+  const foodKeys = Object.keys(foods).sort().reverse();
+  foodHistory.innerHTML = foodKeys.length
+    ? foodKeys.map((date) => {
+      const score = scoreOf(foods[date]);
+      return `<div class="history-item">
+        <b>${jpDate(date).slice(5)}</b>
+        <span>${metrics.slice(0, 5).map((metric) => `${metric.icon}${evaluate(metric.key, foods[date][metric.key] || 0).label[0]}`).join(" ")}</span>
+        <b>${score}点</b>
+      </div>`;
+    }).join("")
+    : "<p class='hint'>食事履歴はまだありません。</p>";
+
+  const bps = bpRecords();
+  const bpKeys = Object.keys(bps).sort().reverse();
+  bpHistory.innerHTML = bpKeys.length
+    ? bpKeys.map((date) => `<div class="history-item">
+        <b>${jpDate(date).slice(5)}</b>
+        <span>朝 ${bps[date].amSys || "-"}/${bps[date].amDia || "-"} 夜 ${bps[date].pmSys || "-"}/${bps[date].pmDia || "-"}${bps[date].memo ? " / " + escapeHtml(bps[date].memo) : ""}</span>
+        <b></b>
+      </div>`).join("")
+    : "<p class='hint'>血圧履歴はまだありません。</p>";
+
+  renderAverages();
+}
+
+function renderAverages() {
+  const foods = foodRecords();
+  const dates = recentDates(7);
+  const rows = metrics.map((metric) => {
+    const values = dates.map((date) => foods[date]?.[metric.key]).filter((value) => Number.isFinite(value) && value > 0);
+    const avg = values.length ? values.reduce((sum, value) => sum + value, 0) / values.length : null;
+    return `<div class="average-item">
+      <b>${metric.icon} ${metric.name}</b>
+      <span>${values.length}日分の平均</span>
+      <b>${avg === null ? "-" : round(avg)}${avg === null ? "" : metric.unit}</b>
+    </div>`;
+  });
+  averageRows.innerHTML = rows.join("");
+}
+
+function recentDates(days) {
+  const dates = [];
+  for (let i = days - 1; i >= 0; i--) {
+    const date = new Date();
+    date.setDate(date.getDate() - i);
+    dates.push(new Date(date - date.getTimezoneOffset() * 60000).toISOString().slice(0, 10));
+  }
+  return dates;
+}
+
+graphType.onchange = () => {
+  refreshMetricOptions();
+  drawChart();
+};
+metricSelect.onchange = drawChart;
+rangeSelect.onchange = drawChart;
+
+function refreshMetricOptions() {
+  const current = metricSelect.value;
+  const options = graphType.value === "food"
+    ? metrics.map((metric) => `<option value="${metric.key}">${metric.name}</option>`)
+    : bpMetrics.map((metric) => `<option value="${metric.key}">${metric.name}</option>`);
+  metricSelect.innerHTML = options.join("");
+  if ([...metricSelect.options].some((option) => option.value === current)) metricSelect.value = current;
+}
+
+function drawChart() {
+  const ctx = chart.getContext("2d");
+  const dpr = window.devicePixelRatio || 1;
+  const rect = chart.getBoundingClientRect();
+  chart.width = Math.max(320, Math.floor(rect.width * dpr));
+  chart.height = Math.floor(260 * dpr);
+  ctx.scale(dpr, dpr);
+  const width = chart.width / dpr;
+  const height = chart.height / dpr;
+  ctx.clearRect(0, 0, width, height);
+
+  const range = parseInt(rangeSelect.value, 10);
+  const dates = recentDates(range);
+  const isFood = graphType.value === "food";
+  const metricKey = metricSelect.value || (isFood ? "energy" : "sys");
+  const source = isFood ? foodRecords() : bpRecords();
+
+  if (isFood) {
+    const values = dates.map((date) => source[date]?.[metricKey] || 0);
+    const metric = metrics.find((item) => item.key === metricKey) || metrics[0];
+    const target = targetLineFor(metricKey);
+    drawSingleSeries(ctx, { dates, values, width, height, label: metric.name, unit: metric.unit, target });
+  } else {
+    const amKey = `am${metricKey[0].toUpperCase()}${metricKey.slice(1)}`;
+    const pmKey = `pm${metricKey[0].toUpperCase()}${metricKey.slice(1)}`;
+    const amValues = dates.map((date) => source[date]?.[amKey] || 0);
+    const pmValues = dates.map((date) => source[date]?.[pmKey] || 0);
+    const metric = bpMetrics.find((item) => item.key === metricKey) || bpMetrics[0];
+    drawDualSeries(ctx, { dates, amValues, pmValues, width, height, label: metric.name, unit: metric.unit });
+  }
+}
+
+function targetLineFor(key) {
+  const threshold = settings().thresholds[key];
+  if (!threshold || threshold.enabled === false) return null;
+  return threshold.mode === "range" ? threshold.goodMax : threshold.goodMax;
+}
+
+function chartBase(ctx, width, height, max) {
+  const pad = { left: 34, right: 12, top: 22, bottom: 32 };
+  const graphWidth = width - pad.left - pad.right;
+  const graphHeight = height - pad.top - pad.bottom;
+  ctx.strokeStyle = "#ead8ca";
+  ctx.lineWidth = 1;
+  ctx.beginPath();
+  ctx.moveTo(pad.left, pad.top);
+  ctx.lineTo(pad.left, pad.top + graphHeight);
+  ctx.lineTo(pad.left + graphWidth, pad.top + graphHeight);
+  ctx.stroke();
+  ctx.fillStyle = "#756767";
+  ctx.font = "12px sans-serif";
+  ctx.fillText(String(Math.round(max)), 4, pad.top + 4);
+  ctx.fillText("0", 18, pad.top + graphHeight);
+  return { pad, graphWidth, graphHeight };
+}
+
+function drawSingleSeries(ctx, options) {
+  const { dates, values, width, height, label, unit, target } = options;
+  const max = Math.max(...values, target || 0, 1) * 1.18;
+  const base = chartBase(ctx, width, height, max);
+  if (target) drawTargetLine(ctx, base, width, max, target);
+  drawLine(ctx, values, base, max, "#ff8f83");
+  drawBottomLabels(ctx, dates, base);
+  ctx.fillStyle = "#3f2f2f";
+  ctx.font = "13px sans-serif";
+  ctx.fillText(`${label} (${unit})`, base.pad.left, 15);
+}
+
+function drawDualSeries(ctx, options) {
+  const { dates, amValues, pmValues, width, height, label, unit } = options;
+  const max = Math.max(...amValues, ...pmValues, 1) * 1.18;
+  const base = chartBase(ctx, width, height, max);
+  drawLine(ctx, amValues, base, max, "#5e8cc7");
+  drawLine(ctx, pmValues, base, max, "#ff8f83");
+  drawBottomLabels(ctx, dates, base);
+  ctx.fillStyle = "#3f2f2f";
+  ctx.font = "13px sans-serif";
+  ctx.fillText(`${label} (${unit})`, base.pad.left, 15);
+  ctx.fillStyle = "#5e8cc7";
+  ctx.fillText("朝", width - 70, 15);
+  ctx.fillStyle = "#ff8f83";
+  ctx.fillText("夜", width - 40, 15);
+}
+
+function drawLine(ctx, values, base, max, color) {
+  const { pad, graphWidth, graphHeight } = base;
+  ctx.strokeStyle = color;
+  ctx.fillStyle = color;
+  ctx.lineWidth = 3;
+  ctx.beginPath();
+  values.forEach((value, index) => {
+    const x = pad.left + graphWidth * (index / (values.length - 1 || 1));
+    const y = pad.top + graphHeight - (value / max) * graphHeight;
+    if (index === 0) ctx.moveTo(x, y);
+    else ctx.lineTo(x, y);
+  });
+  ctx.stroke();
+  values.forEach((value, index) => {
+    if (!value) return;
+    const x = pad.left + graphWidth * (index / (values.length - 1 || 1));
+    const y = pad.top + graphHeight - (value / max) * graphHeight;
+    ctx.beginPath();
+    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.fill();
+  });
+}
+
+function drawTargetLine(ctx, base, width, max, target) {
+  const { pad, graphHeight } = base;
+  const y = pad.top + graphHeight - (target / max) * graphHeight;
+  ctx.strokeStyle = "#4f9f70";
+  ctx.lineWidth = 1.5;
+  ctx.setLineDash([5, 5]);
+  ctx.beginPath();
+  ctx.moveTo(pad.left, y);
+  ctx.lineTo(width - pad.right, y);
+  ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.fillStyle = "#4f9f70";
+  ctx.font = "12px sans-serif";
+  ctx.fillText(`目標 ${target}`, pad.left + 4, Math.max(12, y - 4));
+}
+
+function drawBottomLabels(ctx, dates, base) {
+  const { pad, graphWidth, graphHeight } = base;
+  ctx.fillStyle = "#756767";
+  ctx.font = "11px sans-serif";
+  const indices = [0, Math.floor((dates.length - 1) / 2), dates.length - 1];
+  indices.forEach((index) => {
+    const x = pad.left + graphWidth * (index / (dates.length - 1 || 1));
+    const label = dates[index].slice(5).replace("-", "/");
+    ctx.fillText(label, Math.min(x, pad.left + graphWidth - 28), pad.top + graphHeight + 20);
+  });
+}
+
+function renderSettings() {
+  const current = settings();
+  height.value = current.profile.height || "";
+  weight.value = current.profile.weight || "";
+  standardWeight.value = current.profile.standardWeight || "";
+  thresholdEditor.innerHTML = metrics.map((metric) => {
+    const threshold = current.thresholds[metric.key] || {};
+    const rangeFields = threshold.mode === "range"
+      ? `<label>良い 下限<input inputmode="decimal" type="number" data-th="${metric.key}" data-field="goodMin" value="${threshold.goodMin ?? ""}"></label>`
+      : "";
+    return `<div class="threshold-row">
+      <b>${metric.icon} ${metric.name} (${metric.unit})</b>
+      <div class="threshold-grid">
+        ${rangeFields}
+        <label>良い 上限<input inputmode="decimal" type="number" data-th="${metric.key}" data-field="goodMax" value="${threshold.goodMax ?? ""}"></label>
+        <label>注意 上限<input inputmode="decimal" type="number" data-th="${metric.key}" data-field="warnMax" value="${threshold.warnMax ?? ""}"></label>
+        <label class="inline-check wide"><input type="checkbox" data-th="${metric.key}" data-field="enabled" ${threshold.enabled !== false ? "checked" : ""}>評価する</label>
+      </div>
+    </div>`;
+  }).join("");
+}
+
+calcRecommend.onclick = () => {
+  const h = parseFloat(height.value);
+  const w = parseFloat(weight.value);
+  if (!h || !w) {
+    alert("身長と体重を入力してください");
+    return;
+  }
+  const std = (h / 100) * (h / 100) * 22;
+  standardWeight.value = std.toFixed(1);
+  const current = settings();
+  current.profile = { height: height.value, weight: weight.value, standardWeight: standardWeight.value };
+  save(SET_KEY, current);
+  alert(`標準体重の目安は約 ${std.toFixed(1)} kgです。\n評価基準は個人差が大きいため、必要に応じて下の数値を変更してください。`);
+};
+
+saveSettings.onclick = () => {
+  const current = settings();
+  current.profile = { height: height.value, weight: weight.value, standardWeight: standardWeight.value };
+  document.querySelectorAll("[data-th]").forEach((input) => {
+    const key = input.dataset.th;
+    const field = input.dataset.field;
+    if (!current.thresholds[key]) current.thresholds[key] = {};
+    if (field === "enabled") {
+      current.thresholds[key][field] = input.checked;
+    } else {
+      const value = parseFloat(input.value);
+      if (Number.isFinite(value)) current.thresholds[key][field] = value;
+    }
+  });
+  save(SET_KEY, current);
+  alert("設定を保存しました");
+  renderFoodView(viewDatePicker.value || today());
+  refreshMetricOptions();
+  drawChart();
+};
+
+makeShareCode.onclick = () => {
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    food: foodRecords(),
+    bp: bpRecords(),
+    settings: settings()
+  };
+  shareCode.value = btoa(unescape(encodeURIComponent(JSON.stringify(data))));
+};
+
+importShareCode.onclick = () => {
+  if (!shareCode.value.trim()) {
+    alert("共有コードを入力してください");
+    return;
+  }
+  try {
+    const data = JSON.parse(decodeURIComponent(escape(atob(shareCode.value.trim()))));
+    if (data.food) save(FOOD_KEY, data.food);
+    if (data.bp) save(BP_KEY, data.bp);
+    if (data.settings) save(SET_KEY, deepMerge(defaultSettings, data.settings));
+    alert("共有コードを読み込みました");
+    renderFoodView(viewDatePicker.value || today());
+    renderHistory();
+    renderSettings();
+    drawChart();
+  } catch {
+    alert("共有コードを読み込めませんでした");
+  }
+};
+
+function escapeHtml(value) {
+  return String(value).replace(/[&<>"']/g, (char) => ({
+    "&": "&amp;",
+    "<": "&lt;",
+    ">": "&gt;",
+    "\"": "&quot;",
+    "'": "&#039;"
+  }[char]));
+}
+
+function round(value) {
+  return Math.round(value * 10) / 10;
+}
+
+(function init() {
+  foodDate.value = today();
+  bpDate.value = today();
+  viewDatePicker.value = today();
+  clearFoodInputs(true);
+  clearBpInputs(true);
+  refreshMetricOptions();
+  renderFoodView(today());
+  renderHistory();
+  renderSettings();
+  requestAnimationFrame(drawChart);
+})();
+
+  </script>
+  <script>
+    if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+      window.addEventListener("load", function () {
+        navigator.serviceWorker.register("./sw.js").catch(function () {});
+      });
+    }
+  </script></body>
+</html>
