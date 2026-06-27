@@ -1,4 +1,4 @@
-﻿const CACHE_NAME = "kidney-kun-nikki-v5";
+﻿const CACHE_NAME = "kidney-kun-nikki-v6";
 const APP_SHELL = [
   "./",
   "./index.html",
@@ -37,4 +37,5 @@ self.addEventListener("fetch", (event) => {
       .catch(() => caches.match(event.request).then((cached) => cached || caches.match("./index.html")))
   );
 });
+
 
