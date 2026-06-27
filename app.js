@@ -1,4 +1,4 @@
-const FOOD_KEY = "kidneyKunNikki_food_v1";
+﻿const FOOD_KEY = "kidneyKunNikki_food_v1";
 const BP_KEY = "kidneyKunNikki_bp_v1";
 const SET_KEY = "kidneyKunNikki_settings_v1";
 const SYNC_KEY = "kidneyKunNikki_sync_v1";
@@ -668,12 +668,24 @@ function formatBpPair(slot) {
 }
 
 function localSnapshot() {
-  return {
+  const snapshot = {
     version: 2,
     updatedAt: new Date().toISOString(),
     food: foodRecords(),
     bp: bpRecords(),
     settings: settings()
+  };
+  console.log("[kidney-kun-sync] localStorage snapshot", snapshotSummary(snapshot), snapshot);
+  return snapshot;
+}
+
+function snapshotSummary(snapshot) {
+  return {
+    updatedAt: snapshot?.updatedAt || "",
+    foodCount: Object.keys(snapshot?.food || {}).length,
+    bpCount: Object.keys(snapshot?.bp || {}).length,
+    hasSettings: Boolean(snapshot?.settings),
+    jsonLength: JSON.stringify(snapshot || {}).length
   };
 }
 
@@ -728,6 +740,15 @@ async function cloudRequest(action, payload = {}, options = {}) {
   const sync = syncReady(options);
   if (!sync) return null;
   console.log(`[kidney-kun-sync] ${action} start`, { url: sync.url });
+  if (action === "push") {
+    const finalJson = JSON.stringify(payload.data || {});
+    console.log("[kidney-kun-sync] body.data before POST", {
+      summary: snapshotSummary(payload.data || {}),
+      length: finalJson.length,
+      preview: finalJson.slice(0, 1000),
+      data: payload.data || {}
+    });
+  }
   const result = action === "push"
     ? await formPost(sync.url, { action, data: JSON.stringify(payload.data || {}) })
     : await jsonpRequest(sync.url, { action });
@@ -772,19 +793,34 @@ function formPost(url, fields = {}) {
     const iframe = document.createElement("iframe");
     const form = document.createElement("form");
     let submitted = false;
+    let fallbackSubmitTimer = null;
     const timeout = window.setTimeout(() => {
       cleanup();
       reject(new Error("同期先への送信が時間切れになりました"));
     }, 20000);
     function cleanup() {
       window.clearTimeout(timeout);
+      window.clearTimeout(fallbackSubmitTimer);
       form.remove();
       iframe.remove();
+    }
+    function submitForm() {
+      if (submitted) return;
+      submitted = true;
+      console.log("[kidney-kun-sync] formPost submit", {
+        url,
+        fieldNames: Object.keys(fields),
+        dataLength: String(fields.data || "").length,
+        dataPreview: String(fields.data || "").slice(0, 1000)
+      });
+      form.submit();
     }
     iframe.name = frameName;
     iframe.style.display = "none";
     iframe.onload = () => {
-      if (submitted) {
+      if (!submitted) {
+        submitForm();
+      } else {
         cleanup();
         resolve({ ok: true, submitted: true });
       }
@@ -802,8 +838,7 @@ function formPost(url, fields = {}) {
     });
     document.body.appendChild(iframe);
     document.body.appendChild(form);
-    submitted = true;
-    form.submit();
+    fallbackSubmitTimer = window.setTimeout(submitForm, 300);
   });
 }
 
@@ -897,3 +932,5 @@ function round(value) {
   pullFromCloud({ silent: true });
   requestAnimationFrame(drawChart);
 })();
+
+
