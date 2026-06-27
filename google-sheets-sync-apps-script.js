@@ -123,20 +123,31 @@ function writeErrorRows(error) {
 function readSnapshot() {
   const sheet = getSheet();
   const value = sheet.getRange(DATA_CELL).getValue();
-  if (value) return JSON.parse(value);
+  if (isJsonCellValue(value)) return JSON.parse(String(value).trim());
 
   const legacyValue = sheet.getRange("A2").getValue();
-  if (legacyValue && String(legacyValue).trim().charAt(0) === "{") return JSON.parse(legacyValue);
+  if (isJsonCellValue(legacyValue)) return JSON.parse(String(legacyValue).trim());
 
+  return emptySnapshot();
+}
+
+function isJsonCellValue(value) {
+  if (value === null || value === undefined) return false;
+  const text = String(value).trim();
+  return text.charAt(0) === "{" || text.charAt(0) === "[";
+}
+
+function emptySnapshot() {
   return { version: 2, food: {}, bp: {}, settings: {}, updatedAt: "" };
 }
 
 function writeSnapshot(data) {
   Logger.log("kidney_kun_sync writeSnapshot summary: " + JSON.stringify(bodySummary({ action: "push", data: data })));
   const sheet = getSheet();
-  sheet.getRange(DATA_CELL).setValue(JSON.stringify(data || {}));
-  sheet.getRange("B3").setValue("savedAt: " + new Date().toISOString());
-  sheet.getRange("B4").setValue("jsonLength: " + JSON.stringify(data || {}).length);
+  const json = JSON.stringify(data || {});
+  sheet.getRange(DATA_CELL).setValue(json);
+  sheet.getRange("B3").setValue(new Date().toISOString());
+  sheet.getRange("B4").setValue("jsonLength: " + json.length);
   sheet.getRange("B5").setValue("dataCell: " + DATA_CELL);
 }
 
@@ -166,3 +177,4 @@ function output(e, value) {
   }
   return ContentService.createTextOutput(json).setMimeType(ContentService.MimeType.JSON);
 }
+
