@@ -1183,17 +1183,84 @@ function syncReady({ silent = true, manual = false } = {}) {
 async function cloudRequest(action, payload = {}, options = {}) {
   const sync = syncReady(options);
   if (!sync) return null;
-  console.log(`[kidney-kun-sync] ${action} POST start`, { url: sync.url });
-  const response = await fetch(sync.url, {
-    method: "POST",
-    headers: { "Content-Type": "text/plain;charset=utf-8" },
-    body: JSON.stringify({ action, ...payload })
-  });
-  if (!response.ok) throw new Error("同期先に接続できませんでした");
-  const result = await response.json();
-  console.log(`[kidney-kun-sync] ${action} POST result`, result);
+  console.log(`[kidney-kun-sync] ${action} start`, { url: sync.url });
+  const result = action === "push"
+    ? await formPost(sync.url, { action, data: JSON.stringify(payload.data || {}) })
+    : await jsonpRequest(sync.url, { action });
+  console.log(`[kidney-kun-sync] ${action} result`, result);
   if (result && result.ok === false) throw new Error(result.error || "Apps Script側でエラーが返されました");
   return result;
+}
+
+function jsonpRequest(url, params = {}) {
+  return new Promise((resolve, reject) => {
+    const callback = `kidneyKunSync_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const script = document.createElement("script");
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("同期先から応答がありませんでした"));
+    }, 20000);
+    function cleanup() {
+      window.clearTimeout(timeout);
+      delete window[callback];
+      script.remove();
+    }
+    window[callback] = (result) => {
+      cleanup();
+      resolve(result);
+    };
+    const target = new URL(url);
+    Object.entries(params).forEach(([key, value]) => target.searchParams.set(key, value));
+    target.searchParams.set("callback", callback);
+    target.searchParams.set("_", Date.now().toString());
+    script.onerror = () => {
+      cleanup();
+      reject(new Error("同期先を読み込めませんでした"));
+    };
+    script.src = target.toString();
+    document.head.appendChild(script);
+  });
+}
+
+function formPost(url, fields = {}) {
+  return new Promise((resolve, reject) => {
+    const frameName = `kidneyKunSyncFrame_${Date.now()}_${Math.random().toString(36).slice(2)}`;
+    const iframe = document.createElement("iframe");
+    const form = document.createElement("form");
+    let submitted = false;
+    const timeout = window.setTimeout(() => {
+      cleanup();
+      reject(new Error("同期先への送信が時間切れになりました"));
+    }, 20000);
+    function cleanup() {
+      window.clearTimeout(timeout);
+      form.remove();
+      iframe.remove();
+    }
+    iframe.name = frameName;
+    iframe.style.display = "none";
+    iframe.onload = () => {
+      if (submitted) {
+        cleanup();
+        resolve({ ok: true, submitted: true });
+      }
+    };
+    form.method = "POST";
+    form.action = url;
+    form.target = frameName;
+    form.style.display = "none";
+    Object.entries(fields).forEach(([name, value]) => {
+      const input = document.createElement("input");
+      input.type = "hidden";
+      input.name = name;
+      input.value = value == null ? "" : String(value);
+      form.appendChild(input);
+    });
+    document.body.appendChild(iframe);
+    document.body.appendChild(form);
+    submitted = true;
+    form.submit();
+  });
 }
 
 async function pullFromCloud({ silent, manual } = { silent: true, manual: false }) {
@@ -1219,7 +1286,13 @@ async function pushToCloud({ silent, manual } = { silent: true, manual: false })
     setSyncStatus("スプレッドシートへ同期中です...");
     const current = await cloudRequest("pull", {}, { silent, manual });
     if (current?.data) applySnapshot(current.data);
-    await cloudRequest("push", { data: localSnapshot() }, { silent, manual });
+    const snapshot = localSnapshot();
+    await cloudRequest("push", { data: snapshot }, { silent, manual });
+    await new Promise((resolve) => window.setTimeout(resolve, 1200));
+    const verify = await cloudRequest("pull", {}, { silent, manual });
+    if (verify?.data?.updatedAt !== snapshot.updatedAt) {
+      throw new Error("送信後の読戻し確認に失敗しました。Apps Scriptの実行ログを確認してください。");
+    }
     setSyncStatus("スプレッドシートへ保存しました");
     if (!silent) alert("スプレッドシートへ保存しました");
   } catch (error) {
