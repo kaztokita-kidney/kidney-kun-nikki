@@ -1,4 +1,4 @@
-const CACHE_NAME = "kidney-kun-nikki-v2";
+const CACHE_NAME = "kidney-kun-nikki-v3";
 const APP_SHELL = [
   "./",
   "./index.html",

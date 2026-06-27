@@ -582,25 +582,27 @@ saveSettings.onclick = () => {
   drawChart();
 };
 
-saveSync.onclick = () => {
-  const current = syncSettings();
-  if (syncUrl.value.trim()) syncEnabled.checked = true;
-  const next = {
-    ...current,
-    url: syncUrl.value.trim(),
-    enabled: syncEnabled.checked && Boolean(syncUrl.value.trim()),
-    lastStatus: syncUrl.value.trim() ? "同期設定を保存しました" : "同期URLが未設定です"
-  };
-  saveSyncSettings(next);
-  renderSyncStatus(next.lastStatus);
-};
+function bindSyncControls() {
+  const saveButton = document.getElementById("saveSync");
+  const pullButton = document.getElementById("pullSync");
+  const pushButton = document.getElementById("pushSync");
+  const urlInput = document.getElementById("syncUrl");
+  const enabledInput = document.getElementById("syncEnabled");
+  if (!saveButton || !pullButton || !pushButton || !urlInput || !enabledInput) return;
 
-syncUrl.oninput = () => {
-  if (syncUrl.value.trim()) syncEnabled.checked = true;
-};
+  urlInput.addEventListener("input", () => {
+    if (urlInput.value.trim()) enabledInput.checked = true;
+  });
 
-pullSync.onclick = () => pullFromCloud({ silent: false });
-pushSync.onclick = () => pushToCloud({ silent: false });
+  saveButton.addEventListener("click", () => {
+    const next = saveSyncFromForm({ autoEnable: true });
+    renderSyncStatus(next.lastStatus);
+    alert(next.lastStatus);
+  });
+
+  pullButton.addEventListener("click", () => pullFromCloud({ silent: false, manual: true }));
+  pushButton.addEventListener("click", () => pushToCloud({ silent: false, manual: true }));
+}
 
 makeShareCode.onclick = () => {
   const data = {
@@ -686,45 +688,89 @@ function applySnapshot(snapshot) {
   if (snapshot.settings) saveLocal(SET_KEY, deepMerge(defaultSettings, snapshot.settings));
 }
 
-async function cloudRequest(action, payload = {}) {
-  const sync = syncSettings();
-  if (!sync.url || sync.enabled === false) return null;
+function saveSyncFromForm({ autoEnable = false, statusText = "" } = {}) {
+  const current = syncSettings();
+  const urlInput = document.getElementById("syncUrl");
+  const enabledInput = document.getElementById("syncEnabled");
+  const url = (urlInput?.value || "").trim();
+  if (autoEnable && url && enabledInput) enabledInput.checked = true;
+  const next = {
+    ...current,
+    url,
+    enabled: Boolean(url) && Boolean(enabledInput?.checked),
+    lastStatus: statusText || (url ? "同期設定を保存しました" : "同期URLが未設定です")
+  };
+  saveSyncSettings(next);
+  return next;
+}
+
+function syncReady({ silent = true, manual = false } = {}) {
+  let sync = syncSettings();
+  if (manual && document.getElementById("syncUrl")) {
+    sync = saveSyncFromForm({ autoEnable: true, statusText: "同期を開始します" });
+  }
+  if (!sync.url) {
+    const message = "同期URLが未設定です。設定画面でGoogle Apps ScriptのWebアプリURLを入力し、同期設定を保存してください。";
+    setSyncStatus(message);
+    if (!silent) alert(message);
+    return null;
+  }
+  if (sync.enabled === false && !manual) return null;
+  if (manual && sync.enabled === false) {
+    sync.enabled = true;
+    sync.lastStatus = "同期を開始します";
+    saveSyncSettings(sync);
+  }
+  return sync;
+}
+
+async function cloudRequest(action, payload = {}, options = {}) {
+  const sync = syncReady(options);
+  if (!sync) return null;
+  console.log(`[kidney-kun-sync] ${action} POST start`, { url: sync.url });
   const response = await fetch(sync.url, {
     method: "POST",
     headers: { "Content-Type": "text/plain;charset=utf-8" },
     body: JSON.stringify({ action, ...payload })
   });
   if (!response.ok) throw new Error("同期先に接続できませんでした");
-  return response.json();
+  const result = await response.json();
+  console.log(`[kidney-kun-sync] ${action} POST result`, result);
+  if (result && result.ok === false) throw new Error(result.error || "Apps Script側でエラーが返されました");
+  return result;
 }
 
-async function pullFromCloud({ silent } = { silent: true }) {
-  const sync = syncSettings();
-  if (!sync.url || sync.enabled === false) return;
+async function pullFromCloud({ silent, manual } = { silent: true, manual: false }) {
+  if (!syncReady({ silent, manual })) return;
   try {
-    const result = await cloudRequest("pull");
+    setSyncStatus("スプレッドシートから読み込み中です...");
+    const result = await cloudRequest("pull", {}, { silent, manual });
     if (result?.data) applySnapshot(result.data);
     setSyncStatus("スプレッドシートから読み込みました");
     refreshAll();
     if (!silent) alert("スプレッドシートから読み込みました");
   } catch (error) {
-    setSyncStatus(`同期読込エラー: ${error.message}`);
-    if (!silent) alert("同期読込に失敗しました。URLとApps Scriptの公開設定を確認してください。");
+    const message = `同期読込エラー: ${error.message}`;
+    console.error("[kidney-kun-sync] pull failed", error);
+    setSyncStatus(message);
+    if (!silent) alert(`${message}\nURLとApps Scriptの公開設定を確認してください。`);
   }
 }
 
-async function pushToCloud({ silent } = { silent: true }) {
-  const sync = syncSettings();
-  if (!sync.url || sync.enabled === false) return;
+async function pushToCloud({ silent, manual } = { silent: true, manual: false }) {
+  if (!syncReady({ silent, manual })) return;
   try {
-    const current = await cloudRequest("pull");
+    setSyncStatus("スプレッドシートへ同期中です...");
+    const current = await cloudRequest("pull", {}, { silent, manual });
     if (current?.data) applySnapshot(current.data);
-    await cloudRequest("push", { data: localSnapshot() });
+    await cloudRequest("push", { data: localSnapshot() }, { silent, manual });
     setSyncStatus("スプレッドシートへ保存しました");
     if (!silent) alert("スプレッドシートへ保存しました");
   } catch (error) {
-    setSyncStatus(`同期保存エラー: ${error.message}`);
-    if (!silent) alert("同期保存に失敗しました。URLとApps Scriptの公開設定を確認してください。");
+    const message = `同期保存エラー: ${error.message}`;
+    console.error("[kidney-kun-sync] push failed", error);
+    setSyncStatus(message);
+    if (!silent) alert(`${message}\nURLとApps Scriptの公開設定を確認してください。`);
   }
 }
 
@@ -774,6 +820,7 @@ function round(value) {
   renderFoodView(today());
   renderHistory();
   renderSettings();
+  bindSyncControls();
   pullFromCloud({ silent: true });
   requestAnimationFrame(drawChart);
 })();
