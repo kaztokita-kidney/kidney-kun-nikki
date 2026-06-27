@@ -1,6 +1,13 @@
 const FOOD_KEY = "kidneyKunNikki_food_v1";
 const BP_KEY = "kidneyKunNikki_bp_v1";
 const SET_KEY = "kidneyKunNikki_settings_v1";
+const SYNC_KEY = "kidneyKunNikki_sync_v1";
+
+const bpTimes = [
+  { key: "am", name: "朝" },
+  { key: "noon", name: "昼" },
+  { key: "pm", name: "夜" }
+];
 
 const metrics = [
   { key: "energy", name: "エネルギー", unit: "kcal", icon: "E", type: "range" },
@@ -13,8 +20,7 @@ const metrics = [
 
 const bpMetrics = [
   { key: "sys", name: "最高血圧", unit: "mmHg" },
-  { key: "dia", name: "最低血圧", unit: "mmHg" },
-  { key: "pulse", name: "脈拍", unit: "回/分" }
+  { key: "dia", name: "最低血圧", unit: "mmHg" }
 ];
 
 const defaultSettings = {
@@ -50,6 +56,10 @@ function save(key, value) {
   localStorage.setItem(key, JSON.stringify(value));
 }
 
+function saveLocal(key, value) {
+  save(key, value);
+}
+
 function deepMerge(base, override) {
   const out = structuredClone(base);
   Object.keys(override || {}).forEach((key) => {
@@ -67,16 +77,31 @@ function foodRecords() {
 }
 
 function bpRecords() {
-  return load(BP_KEY, {});
+  return normalizeBpRecords(load(BP_KEY, {}));
 }
 
 function settings() {
   return deepMerge(defaultSettings, load(SET_KEY, defaultSettings));
 }
 
+function syncSettings() {
+  return load(SYNC_KEY, { url: "", enabled: false, lastSync: "", lastStatus: "" });
+}
+
+function saveSyncSettings(value) {
+  saveLocal(SYNC_KEY, value);
+}
+
 function num(id) {
   const value = parseFloat(document.getElementById(id).value);
   return Number.isFinite(value) ? value : 0;
+}
+
+function optionalNum(id) {
+  const raw = document.getElementById(id).value.trim();
+  if (raw === "") return null;
+  const value = parseFloat(raw);
+  return Number.isFinite(value) ? value : null;
 }
 
 function setValue(id, value) {
@@ -90,7 +115,9 @@ document.querySelectorAll(".tab").forEach((button) => {
 function show(id) {
   document.querySelectorAll(".screen").forEach((screen) => screen.classList.toggle("active", screen.id === id));
   document.querySelectorAll(".tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.screen === id));
-  if (id === "wifeView") renderFoodView(viewDatePicker.value || today());
+  if (id === "wifeView") {
+    pullFromCloud({ silent: true }).finally(() => renderFoodView(viewDatePicker.value || today()));
+  }
   if (id === "history") {
     renderHistory();
     refreshMetricOptions();
@@ -208,7 +235,7 @@ function fillFoodInputs(date) {
 }
 
 function clearBpInputs(keepDate = false) {
-  ["amSys", "amDia", "amPulse", "pmSys", "pmDia", "pmPulse", "bpMemo"].forEach((id) => setValue(id, ""));
+  bpTimes.flatMap((time) => [`${time.key}Sys`, `${time.key}Dia`]).concat("bpMemo").forEach((id) => setValue(id, ""));
   if (!keepDate) bpDate.value = today();
 }
 
@@ -216,11 +243,14 @@ function fillBpInputs(date) {
   clearBpInputs(true);
   const record = bpRecords()[date];
   if (!record) return;
-  ["amSys", "amDia", "amPulse", "pmSys", "pmDia", "pmPulse"].forEach((id) => setValue(id, record[id]));
+  bpTimes.forEach((time) => {
+    setValue(`${time.key}Sys`, record[time.key]?.sys);
+    setValue(`${time.key}Dia`, record[time.key]?.dia);
+  });
   setValue("bpMemo", record.memo);
 }
 
-saveFood.onclick = () => {
+saveFood.onclick = async () => {
   const date = foodDate.value || today();
   const records = foodRecords();
   records[date] = {
@@ -231,9 +261,10 @@ saveFood.onclick = () => {
     phosphorus: num("phosphorus"),
     water: num("water")
   };
-  save(FOOD_KEY, records);
+  saveLocal(FOOD_KEY, records);
   renderFoodView(date);
   clearFoodInputs();
+  await pushToCloud({ silent: true });
   show("wifeView");
 };
 
@@ -242,20 +273,18 @@ loadFood.onclick = () => fillFoodInputs(foodDate.value || today());
 foodDate.onchange = () => clearFoodInputs(true);
 viewDatePicker.onchange = () => renderFoodView(viewDatePicker.value || today());
 
-saveBp.onclick = () => {
+saveBp.onclick = async () => {
   const date = bpDate.value || today();
   const records = bpRecords();
   records[date] = {
-    amSys: num("amSys"),
-    amDia: num("amDia"),
-    amPulse: num("amPulse"),
-    pmSys: num("pmSys"),
-    pmDia: num("pmDia"),
-    pmPulse: num("pmPulse"),
+    am: { sys: optionalNum("amSys"), dia: optionalNum("amDia") },
+    noon: { sys: optionalNum("noonSys"), dia: optionalNum("noonDia") },
+    pm: { sys: optionalNum("pmSys"), dia: optionalNum("pmDia") },
     memo: bpMemo.value || ""
   };
-  save(BP_KEY, records);
+  saveLocal(BP_KEY, records);
   clearBpInputs();
+  await pushToCloud({ silent: true });
   alert("血圧を保存しました");
   renderHistory();
 };
@@ -283,7 +312,7 @@ function renderHistory() {
   bpHistory.innerHTML = bpKeys.length
     ? bpKeys.map((date) => `<div class="history-item">
         <b>${jpDate(date).slice(5)}</b>
-        <span>朝 ${bps[date].amSys || "-"}/${bps[date].amDia || "-"} 夜 ${bps[date].pmSys || "-"}/${bps[date].pmDia || "-"}${bps[date].memo ? " / " + escapeHtml(bps[date].memo) : ""}</span>
+        <span>${bpTimes.map((time) => `${time.name} ${formatBpPair(bps[date][time.key])}`).join("　")}${bps[date].memo ? " / " + escapeHtml(bps[date].memo) : ""}</span>
         <b></b>
       </div>`).join("")
     : "<p class='hint'>血圧履歴はまだありません。</p>";
@@ -355,12 +384,17 @@ function drawChart() {
     const target = targetLineFor(metricKey);
     drawSingleSeries(ctx, { dates, values, width, height, label: metric.name, unit: metric.unit, target });
   } else {
-    const amKey = `am${metricKey[0].toUpperCase()}${metricKey.slice(1)}`;
-    const pmKey = `pm${metricKey[0].toUpperCase()}${metricKey.slice(1)}`;
-    const amValues = dates.map((date) => source[date]?.[amKey] || 0);
-    const pmValues = dates.map((date) => source[date]?.[pmKey] || 0);
+    const bpPoints = [];
+    dates.forEach((date) => {
+      bpTimes.forEach((time) => {
+        bpPoints.push({
+          label: `${date.slice(5).replace("-", "/")} ${time.name}`,
+          value: source[date]?.[time.key]?.[metricKey] ?? null
+        });
+      });
+    });
     const metric = bpMetrics.find((item) => item.key === metricKey) || bpMetrics[0];
-    drawDualSeries(ctx, { dates, amValues, pmValues, width, height, label: metric.name, unit: metric.unit });
+    drawBpSeries(ctx, { points: bpPoints, width, height, label: metric.name, unit: metric.unit });
   }
 }
 
@@ -398,22 +432,21 @@ function drawSingleSeries(ctx, options) {
   ctx.fillStyle = "#3f2f2f";
   ctx.font = "13px sans-serif";
   ctx.fillText(`${label} (${unit})`, base.pad.left, 15);
+  chartHint.textContent = "設定した目標線または上限線を一緒に表示します。";
 }
 
-function drawDualSeries(ctx, options) {
-  const { dates, amValues, pmValues, width, height, label, unit } = options;
-  const max = Math.max(...amValues, ...pmValues, 1) * 1.18;
+function drawBpSeries(ctx, options) {
+  const { points, width, height, label, unit } = options;
+  const values = points.map((point) => point.value);
+  const measured = values.filter((value) => Number.isFinite(value) && value > 0);
+  const max = Math.max(...measured, 1) * 1.18;
   const base = chartBase(ctx, width, height, max);
-  drawLine(ctx, amValues, base, max, "#5e8cc7");
-  drawLine(ctx, pmValues, base, max, "#ff8f83");
-  drawBottomLabels(ctx, dates, base);
+  drawLine(ctx, values, base, max, "#5e8cc7");
+  drawPointLabels(ctx, points, base);
   ctx.fillStyle = "#3f2f2f";
   ctx.font = "13px sans-serif";
   ctx.fillText(`${label} (${unit})`, base.pad.left, 15);
-  ctx.fillStyle = "#5e8cc7";
-  ctx.fillText("朝", width - 70, 15);
-  ctx.fillStyle = "#ff8f83";
-  ctx.fillText("夜", width - 40, 15);
+  chartHint.textContent = "未測定は空欄として扱い、グラフ上に点を表示しません。";
 }
 
 function drawLine(ctx, values, base, max, color) {
@@ -422,19 +455,27 @@ function drawLine(ctx, values, base, max, color) {
   ctx.fillStyle = color;
   ctx.lineWidth = 3;
   ctx.beginPath();
+  let hasStarted = false;
   values.forEach((value, index) => {
+    if (!Number.isFinite(value) || value <= 0) {
+      hasStarted = false;
+      return;
+    }
     const x = pad.left + graphWidth * (index / (values.length - 1 || 1));
     const y = pad.top + graphHeight - (value / max) * graphHeight;
-    if (index === 0) ctx.moveTo(x, y);
+    if (!hasStarted) {
+      ctx.moveTo(x, y);
+      hasStarted = true;
+    }
     else ctx.lineTo(x, y);
   });
   ctx.stroke();
   values.forEach((value, index) => {
-    if (!value) return;
+    if (!Number.isFinite(value) || value <= 0) return;
     const x = pad.left + graphWidth * (index / (values.length - 1 || 1));
     const y = pad.top + graphHeight - (value / max) * graphHeight;
     ctx.beginPath();
-    ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+    ctx.arc(x, y, 4, 0, Math.PI * 2);
     ctx.fill();
   });
 }
@@ -467,11 +508,26 @@ function drawBottomLabels(ctx, dates, base) {
   });
 }
 
+function drawPointLabels(ctx, points, base) {
+  const { pad, graphWidth, graphHeight } = base;
+  ctx.fillStyle = "#756767";
+  ctx.font = "10px sans-serif";
+  const indices = [0, Math.floor((points.length - 1) / 2), points.length - 1];
+  indices.forEach((index) => {
+    const x = pad.left + graphWidth * (index / (points.length - 1 || 1));
+    ctx.fillText(points[index].label, Math.min(x, pad.left + graphWidth - 48), pad.top + graphHeight + 20);
+  });
+}
+
 function renderSettings() {
   const current = settings();
+  const sync = syncSettings();
   height.value = current.profile.height || "";
   weight.value = current.profile.weight || "";
   standardWeight.value = current.profile.standardWeight || "";
+  syncUrl.value = sync.url || "";
+  syncEnabled.checked = sync.enabled !== false && Boolean(sync.url);
+  renderSyncStatus(sync.lastStatus || (sync.url ? "同期設定済み" : "未設定"));
   thresholdEditor.innerHTML = metrics.map((metric) => {
     const threshold = current.thresholds[metric.key] || {};
     const rangeFields = threshold.mode === "range"
@@ -500,7 +556,7 @@ calcRecommend.onclick = () => {
   standardWeight.value = std.toFixed(1);
   const current = settings();
   current.profile = { height: height.value, weight: weight.value, standardWeight: standardWeight.value };
-  save(SET_KEY, current);
+  saveLocal(SET_KEY, current);
   alert(`標準体重の目安は約 ${std.toFixed(1)} kgです。\n評価基準は個人差が大きいため、必要に応じて下の数値を変更してください。`);
 };
 
@@ -518,12 +574,33 @@ saveSettings.onclick = () => {
       if (Number.isFinite(value)) current.thresholds[key][field] = value;
     }
   });
-  save(SET_KEY, current);
+  saveLocal(SET_KEY, current);
+  pushToCloud({ silent: true });
   alert("設定を保存しました");
   renderFoodView(viewDatePicker.value || today());
   refreshMetricOptions();
   drawChart();
 };
+
+saveSync.onclick = () => {
+  const current = syncSettings();
+  if (syncUrl.value.trim()) syncEnabled.checked = true;
+  const next = {
+    ...current,
+    url: syncUrl.value.trim(),
+    enabled: syncEnabled.checked && Boolean(syncUrl.value.trim()),
+    lastStatus: syncUrl.value.trim() ? "同期設定を保存しました" : "同期URLが未設定です"
+  };
+  saveSyncSettings(next);
+  renderSyncStatus(next.lastStatus);
+};
+
+syncUrl.oninput = () => {
+  if (syncUrl.value.trim()) syncEnabled.checked = true;
+};
+
+pullSync.onclick = () => pullFromCloud({ silent: false });
+pushSync.onclick = () => pushToCloud({ silent: false });
 
 makeShareCode.onclick = () => {
   const data = {
@@ -543,9 +620,9 @@ importShareCode.onclick = () => {
   }
   try {
     const data = JSON.parse(decodeURIComponent(escape(atob(shareCode.value.trim()))));
-    if (data.food) save(FOOD_KEY, data.food);
-    if (data.bp) save(BP_KEY, data.bp);
-    if (data.settings) save(SET_KEY, deepMerge(defaultSettings, data.settings));
+    if (data.food) saveLocal(FOOD_KEY, data.food);
+    if (data.bp) saveLocal(BP_KEY, normalizeBpRecords(data.bp));
+    if (data.settings) saveLocal(SET_KEY, deepMerge(defaultSettings, data.settings));
     alert("共有コードを読み込みました");
     renderFoodView(viewDatePicker.value || today());
     renderHistory();
@@ -555,6 +632,122 @@ importShareCode.onclick = () => {
     alert("共有コードを読み込めませんでした");
   }
 };
+
+function normalizeBpRecords(records) {
+  const normalized = {};
+  Object.entries(records || {}).forEach(([date, record]) => {
+    normalized[date] = {
+      am: normalizeBpSlot(record.am, record.amSys, record.amDia),
+      noon: normalizeBpSlot(record.noon, record.noonSys, record.noonDia),
+      pm: normalizeBpSlot(record.pm, record.pmSys, record.pmDia),
+      memo: record.memo || ""
+    };
+  });
+  return normalized;
+}
+
+function normalizeBpSlot(slot, legacySys, legacyDia) {
+  return {
+    sys: toNullableNumber(slot?.sys ?? legacySys),
+    dia: toNullableNumber(slot?.dia ?? legacyDia)
+  };
+}
+
+function toNullableNumber(value) {
+  if (value === "" || value === null || value === undefined) return null;
+  const number = Number(value);
+  return Number.isFinite(number) && number > 0 ? number : null;
+}
+
+function formatBpPair(slot) {
+  const sys = slot?.sys ?? "-";
+  const dia = slot?.dia ?? "-";
+  return `${sys}/${dia}`;
+}
+
+function localSnapshot() {
+  return {
+    version: 2,
+    updatedAt: new Date().toISOString(),
+    food: foodRecords(),
+    bp: bpRecords(),
+    settings: settings()
+  };
+}
+
+function mergeRecords(local, remote) {
+  return { ...(remote || {}), ...(local || {}) };
+}
+
+function applySnapshot(snapshot) {
+  if (!snapshot || typeof snapshot !== "object") return;
+  if (snapshot.food) saveLocal(FOOD_KEY, mergeRecords(foodRecords(), snapshot.food));
+  if (snapshot.bp) saveLocal(BP_KEY, normalizeBpRecords(mergeRecords(bpRecords(), snapshot.bp)));
+  if (snapshot.settings) saveLocal(SET_KEY, deepMerge(defaultSettings, snapshot.settings));
+}
+
+async function cloudRequest(action, payload = {}) {
+  const sync = syncSettings();
+  if (!sync.url || sync.enabled === false) return null;
+  const response = await fetch(sync.url, {
+    method: "POST",
+    headers: { "Content-Type": "text/plain;charset=utf-8" },
+    body: JSON.stringify({ action, ...payload })
+  });
+  if (!response.ok) throw new Error("同期先に接続できませんでした");
+  return response.json();
+}
+
+async function pullFromCloud({ silent } = { silent: true }) {
+  const sync = syncSettings();
+  if (!sync.url || sync.enabled === false) return;
+  try {
+    const result = await cloudRequest("pull");
+    if (result?.data) applySnapshot(result.data);
+    setSyncStatus("スプレッドシートから読み込みました");
+    refreshAll();
+    if (!silent) alert("スプレッドシートから読み込みました");
+  } catch (error) {
+    setSyncStatus(`同期読込エラー: ${error.message}`);
+    if (!silent) alert("同期読込に失敗しました。URLとApps Scriptの公開設定を確認してください。");
+  }
+}
+
+async function pushToCloud({ silent } = { silent: true }) {
+  const sync = syncSettings();
+  if (!sync.url || sync.enabled === false) return;
+  try {
+    const current = await cloudRequest("pull");
+    if (current?.data) applySnapshot(current.data);
+    await cloudRequest("push", { data: localSnapshot() });
+    setSyncStatus("スプレッドシートへ保存しました");
+    if (!silent) alert("スプレッドシートへ保存しました");
+  } catch (error) {
+    setSyncStatus(`同期保存エラー: ${error.message}`);
+    if (!silent) alert("同期保存に失敗しました。URLとApps Scriptの公開設定を確認してください。");
+  }
+}
+
+function setSyncStatus(message) {
+  const sync = syncSettings();
+  sync.lastSync = new Date().toISOString();
+  sync.lastStatus = message;
+  saveSyncSettings(sync);
+  renderSyncStatus(message);
+}
+
+function renderSyncStatus(message) {
+  if (!document.getElementById("syncStatus")) return;
+  syncStatus.textContent = message || "";
+}
+
+function refreshAll() {
+  renderFoodView(viewDatePicker.value || today());
+  renderHistory();
+  renderSettings();
+  refreshMetricOptions();
+  drawChart();
+}
 
 function escapeHtml(value) {
   return String(value).replace(/[&<>"']/g, (char) => ({
@@ -571,6 +764,7 @@ function round(value) {
 }
 
 (function init() {
+  saveLocal(BP_KEY, bpRecords());
   foodDate.value = today();
   bpDate.value = today();
   viewDatePicker.value = today();
@@ -580,5 +774,6 @@ function round(value) {
   renderFoodView(today());
   renderHistory();
   renderSettings();
+  pullFromCloud({ silent: true });
   requestAnimationFrame(drawChart);
 })();
