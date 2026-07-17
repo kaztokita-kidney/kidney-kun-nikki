@@ -25,6 +25,7 @@ const bpMetrics = [
 
 const defaultSettings = {
   profile: { height: "", weight: "", standardWeight: "" },
+  _settingsSavedAt: "",
   thresholds: {
     energy: { goodMin: 1000, goodMax: 1320, warnMax: 1900, mode: "range", enabled: true },
     protein: { goodMax: 51, warnMax: 70, mode: "upper", enabled: true },
@@ -82,6 +83,42 @@ function bpRecords() {
 
 function settings() {
   return deepMerge(defaultSettings, load(SET_KEY, defaultSettings));
+}
+
+function settingsTimestamp(value) {
+  const time = Date.parse(value?._settingsSavedAt || "");
+  return Number.isFinite(time) ? time : 0;
+}
+
+function isDefaultSettingsValue(value) {
+  if (!value || typeof value !== "object") return true;
+  const normalized = deepMerge(defaultSettings, value);
+  const comparable = (source) => {
+    const copy = deepMerge(defaultSettings, source);
+    delete copy._settingsSavedAt;
+    return copy;
+  };
+  return JSON.stringify(comparable(normalized)) === JSON.stringify(comparable(defaultSettings));
+}
+
+function mergeSettings(localValue, remoteValue) {
+  const local = deepMerge(defaultSettings, localValue || {});
+  const remote = deepMerge(defaultSettings, remoteValue || {});
+  const localTime = settingsTimestamp(local);
+  const remoteTime = settingsTimestamp(remote);
+
+  if (remoteTime > localTime) return remote;
+  if (remoteTime < localTime) return local;
+  if (!remoteValue || isDefaultSettingsValue(remoteValue)) return local;
+  if (isDefaultSettingsValue(localValue)) return remote;
+  return local;
+}
+
+function saveSettingsValue(value) {
+  const next = deepMerge(defaultSettings, value || {});
+  next._settingsSavedAt = new Date().toISOString();
+  saveLocal(SET_KEY, next);
+  return next;
 }
 
 function syncSettings() {
@@ -556,7 +593,7 @@ calcRecommend.onclick = () => {
   standardWeight.value = std.toFixed(1);
   const current = settings();
   current.profile = { height: height.value, weight: weight.value, standardWeight: standardWeight.value };
-  saveLocal(SET_KEY, current);
+  saveSettingsValue(current);
   alert(`標準体重の目安は約 ${std.toFixed(1)} kgです。\n評価基準は個人差が大きいため、必要に応じて下の数値を変更してください。`);
 };
 
@@ -574,7 +611,7 @@ saveSettings.onclick = () => {
       if (Number.isFinite(value)) current.thresholds[key][field] = value;
     }
   });
-  saveLocal(SET_KEY, current);
+  saveSettingsValue(current);
   pushToCloud({ silent: true });
   alert("設定を保存しました");
   renderFoodView(viewDatePicker.value || today());
@@ -624,7 +661,7 @@ importShareCode.onclick = () => {
     const data = JSON.parse(decodeURIComponent(escape(atob(shareCode.value.trim()))));
     if (data.food) saveLocal(FOOD_KEY, data.food);
     if (data.bp) saveLocal(BP_KEY, normalizeBpRecords(data.bp));
-    if (data.settings) saveLocal(SET_KEY, deepMerge(defaultSettings, data.settings));
+    if (data.settings) saveSettingsValue(data.settings);
     alert("共有コードを読み込みました");
     renderFoodView(viewDatePicker.value || today());
     renderHistory();
@@ -697,7 +734,7 @@ function applySnapshot(snapshot) {
   if (!snapshot || typeof snapshot !== "object") return;
   if (snapshot.food) saveLocal(FOOD_KEY, mergeRecords(foodRecords(), snapshot.food));
   if (snapshot.bp) saveLocal(BP_KEY, normalizeBpRecords(mergeRecords(bpRecords(), snapshot.bp)));
-  if (snapshot.settings) saveLocal(SET_KEY, deepMerge(defaultSettings, snapshot.settings));
+  if (snapshot.settings) saveLocal(SET_KEY, mergeSettings(settings(), snapshot.settings));
 }
 
 function saveSyncFromForm({ autoEnable = false, statusText = "" } = {}) {
@@ -864,7 +901,11 @@ async function pushToCloud({ silent, manual } = { silent: true, manual: false })
   try {
     setSyncStatus("スプレッドシートへ同期中です...");
     const current = await cloudRequest("pull", {}, { silent, manual });
-    if (current?.data) applySnapshot(current.data);
+    if (current?.data) {
+      const localBeforeMerge = localSnapshot();
+      applySnapshot(current.data);
+      if (localBeforeMerge.settings) saveLocal(SET_KEY, mergeSettings(settings(), localBeforeMerge.settings));
+    }
     const snapshot = localSnapshot();
     await cloudRequest("push", { data: snapshot }, { silent, manual });
     await new Promise((resolve) => window.setTimeout(resolve, 1200));
