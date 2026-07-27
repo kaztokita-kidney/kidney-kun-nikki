@@ -225,6 +225,31 @@ textarea{resize:vertical}
 }
 .history-item:last-child,.average-item:last-child{border-bottom:0}
 .history-item span,.average-item span{color:var(--muted);line-height:1.45}
+.edit-notice{
+  margin:10px 0 14px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#f4f0ec;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+}
+.edit-notice.editing{
+  background:#fff0d8;
+  border:1px solid #efc777;
+  color:#6b4a12;
+  font-weight:700;
+}
+.history-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.history-edit{
+  min-height:36px;
+  padding:7px 10px;
+  border:1px solid #d69267;
+  border-radius:10px;
+  background:#fff;
+  color:#8b4b2e;
+  font-weight:700;
+}
 .threshold-row{
   border-top:1px solid var(--line);
   padding-top:12px;

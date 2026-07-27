@@ -241,6 +241,31 @@ textarea{resize:vertical}
 }
 .history-item:last-child,.average-item:last-child{border-bottom:0}
 .history-item span,.average-item span{color:var(--muted);line-height:1.45}
+.edit-notice{
+  margin:10px 0 14px;
+  padding:11px 12px;
+  border-radius:12px;
+  background:#f4f0ec;
+  color:var(--muted);
+  font-size:14px;
+  line-height:1.5;
+}
+.edit-notice.editing{
+  background:#fff0d8;
+  border:1px solid #efc777;
+  color:#6b4a12;
+  font-weight:700;
+}
+.history-actions{display:flex;align-items:center;justify-content:flex-end;gap:6px}
+.history-edit{
+  min-height:36px;
+  padding:7px 10px;
+  border:1px solid #d69267;
+  border-radius:10px;
+  background:#fff;
+  color:#8b4b2e;
+  font-weight:700;
+}
 .threshold-row{
   border-top:1px solid var(--line);
   padding-top:12px;
@@ -286,7 +311,7 @@ canvas{
   .comment{font-size:14px;line-height:1.5}
 }
 
-  </style>
+</style>
   <!-- 単一HTML版: CSSとJavaScriptを埋め込み済み。iPhoneで外部ファイルが読めない場合に使います。 -->
 </head>
 <body>
@@ -454,7 +479,7 @@ canvas{
     </section>
   </main>
   <script>
-const FOOD_KEY = "kidneyKunNikki_food_v1";
+﻿const FOOD_KEY = "kidneyKunNikki_food_v1";
 const BP_KEY = "kidneyKunNikki_bp_v1";
 const SET_KEY = "kidneyKunNikki_settings_v1";
 const SYNC_KEY = "kidneyKunNikki_sync_v1";
@@ -599,6 +624,44 @@ function optionalNum(id) {
 
 function setValue(id, value) {
   document.getElementById(id).value = value ?? "";
+}
+
+function ensureEditNotice(dateInput, kind) {
+  const id = `${kind}EditNotice`;
+  let notice = document.getElementById(id);
+  if (!notice) {
+    notice = document.createElement("div");
+    notice.id = id;
+    notice.className = "edit-notice";
+    dateInput.parentElement.insertAdjacentElement("afterend", notice);
+  }
+  const date = dateInput.value || today();
+  const exists = kind === "food" ? Boolean(foodRecords()[date]) : Boolean(bpRecords()[date]);
+  notice.classList.toggle("editing", exists);
+  notice.textContent = exists
+    ? `${jpDate(date)} の記録を編集中です。保存すると同じ日の記録を上書きします。`
+    : `${jpDate(date)} の新しい記録を入力しています。`;
+}
+
+function confirmDailySave(kind, date, exists) {
+  const label = kind === "food" ? "食事・評価" : "血圧";
+  const action = exists ? "上書き保存" : "新規保存";
+  return confirm(`${jpDate(date)} の${label}データを${action}します。\n対象日と入力内容をご確認ください。`);
+}
+
+function editDailyRecord(kind, date) {
+  if (kind === "food") {
+    foodDate.value = date;
+    fillFoodInputs(date);
+    ensureEditNotice(foodDate, "food");
+    show("foodInput");
+  } else {
+    bpDate.value = date;
+    fillBpInputs(date);
+    ensureEditNotice(bpDate, "bp");
+    show("bpInput");
+  }
+  window.scrollTo({ top: 0, behavior: "smooth" });
 }
 
 document.querySelectorAll(".tab").forEach((button) => {
@@ -746,6 +809,8 @@ function fillBpInputs(date) {
 saveFood.onclick = async () => {
   const date = foodDate.value || today();
   const records = foodRecords();
+  const exists = Boolean(records[date]);
+  if (!confirmDailySave("food", date, exists)) return;
   records[date] = {
     energy: num("energy"),
     protein: num("protein"),
@@ -756,19 +821,31 @@ saveFood.onclick = async () => {
   };
   saveLocal(FOOD_KEY, records);
   renderFoodView(date);
-  clearFoodInputs();
+  renderHistory();
   await pushToCloud({ silent: true });
+  alert(`${jpDate(date)} の食事・評価データを${exists ? "上書き" : "保存"}しました。`);
   show("wifeView");
 };
 
-clearFood.onclick = () => clearFoodInputs(true);
-loadFood.onclick = () => fillFoodInputs(foodDate.value || today());
-foodDate.onchange = () => clearFoodInputs(true);
+clearFood.onclick = () => {
+  clearFoodInputs(true);
+  ensureEditNotice(foodDate, "food");
+};
+loadFood.onclick = () => {
+  fillFoodInputs(foodDate.value || today());
+  ensureEditNotice(foodDate, "food");
+};
+foodDate.onchange = () => {
+  fillFoodInputs(foodDate.value || today());
+  ensureEditNotice(foodDate, "food");
+};
 viewDatePicker.onchange = () => renderFoodView(viewDatePicker.value || today());
 
 saveBp.onclick = async () => {
   const date = bpDate.value || today();
   const records = bpRecords();
+  const exists = Boolean(records[date]);
+  if (!confirmDailySave("bp", date, exists)) return;
   records[date] = {
     am: { sys: optionalNum("amSys"), dia: optionalNum("amDia") },
     noon: { sys: optionalNum("noonSys"), dia: optionalNum("noonDia") },
@@ -776,15 +853,23 @@ saveBp.onclick = async () => {
     memo: bpMemo.value || ""
   };
   saveLocal(BP_KEY, records);
-  clearBpInputs();
   await pushToCloud({ silent: true });
-  alert("血圧を保存しました");
+  alert(`${jpDate(date)} の血圧データを${exists ? "上書き" : "保存"}しました。`);
   renderHistory();
 };
 
-clearBp.onclick = () => clearBpInputs(true);
-loadBp.onclick = () => fillBpInputs(bpDate.value || today());
-bpDate.onchange = () => clearBpInputs(true);
+clearBp.onclick = () => {
+  clearBpInputs(true);
+  ensureEditNotice(bpDate, "bp");
+};
+loadBp.onclick = () => {
+  fillBpInputs(bpDate.value || today());
+  ensureEditNotice(bpDate, "bp");
+};
+bpDate.onchange = () => {
+  fillBpInputs(bpDate.value || today());
+  ensureEditNotice(bpDate, "bp");
+};
 
 function renderHistory() {
   const foods = foodRecords();
@@ -795,7 +880,7 @@ function renderHistory() {
       return `<div class="history-item">
         <b>${jpDate(date).slice(5)}</b>
         <span>${metrics.slice(0, 5).map((metric) => `${metric.icon}${evaluate(metric.key, foods[date][metric.key] || 0).label[0]}`).join(" ")}</span>
-        <b>${score}点</b>
+        <span class="history-actions"><b>${score}点</b><button type="button" class="history-edit" data-edit-kind="food" data-edit-date="${date}">編集</button></span>
       </div>`;
     }).join("")
     : "<p class='hint'>食事履歴はまだありません。</p>";
@@ -806,11 +891,14 @@ function renderHistory() {
     ? bpKeys.map((date) => `<div class="history-item">
         <b>${jpDate(date).slice(5)}</b>
         <span>${bpTimes.map((time) => `${time.name} ${formatBpPair(bps[date][time.key])}`).join("　")}${bps[date].memo ? " / " + escapeHtml(bps[date].memo) : ""}</span>
-        <b></b>
+        <button type="button" class="history-edit" data-edit-kind="bp" data-edit-date="${date}">編集</button>
       </div>`).join("")
     : "<p class='hint'>血圧履歴はまだありません。</p>";
 
   renderAverages();
+  document.querySelectorAll("[data-edit-kind][data-edit-date]").forEach((button) => {
+    button.addEventListener("click", () => editDailyRecord(button.dataset.editKind, button.dataset.editDate));
+  });
 }
 
 function renderAverages() {
@@ -1421,6 +1509,8 @@ function round(value) {
   viewDatePicker.value = today();
   clearFoodInputs(true);
   clearBpInputs(true);
+  ensureEditNotice(foodDate, "food");
+  ensureEditNotice(bpDate, "bp");
   refreshMetricOptions();
   renderFoodView(today());
   renderHistory();
@@ -1432,7 +1522,7 @@ function round(value) {
 
 
 
-  </script>
+</script>
   <script>
     if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
       window.addEventListener("load", function () {
